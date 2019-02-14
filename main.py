@@ -14,7 +14,7 @@ from dataset import ImageDataset
 from generator import Generator
 from discriminator import Discriminator
 
-EPOCHS = 10
+EPOCHS = 10000
 LEARNING_RATE = 0.0002
 IMAGE_SIZE = 64
 IMAGE_CHANNELS = 3
@@ -99,6 +99,7 @@ for epoch in range(EPOCHS):
     errG_total = 0
     err_count = 0
     for i, real_data in enumerate(data_loader):
+        #real_data = real_data[0].to(device)
         real_data = real_data.to(device)
 
         ############################
