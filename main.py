@@ -39,7 +39,10 @@ transforms = torchvision.transforms.Compose([
 
 dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
 #dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
+
+print('Loading dataset...')
 data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+print('Done loading dataset.')
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 fixed_noise = torch.randn(BATCH_SIZE, Z_SIZE, 1, 1, device=device)
