@@ -24,6 +24,10 @@ BETA1 = 0.5
 OUTPUT_PATH = './output'
 IMAGES_PATH = './images'
 
+RAND_SCALE = 0.001
+G_RAND_THRESHOLD = 20.0
+D_RAND_THRESHOLD = 0.01
+
 REAL_LABEL = 1
 FAKE_LABEL = 0
 
@@ -58,8 +62,29 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
+def rand_tensor(t_like):
+    r_tensor = torch.rand_like(t_like)
+    r_tensor.sub_(0.5)
+    r_tensor.mul_(RAND_SCALE)
+    return r_tensor
+
+
+def randomize_weights(m):
+    classname = m.__class__.__name__
+    if classname.find('Conv') != -1:
+        d_weights = rand_tensor(m.weight.data)
+        m.weight.data.add_(d_weights)
+    elif classname.find('BatchNorm') != -1:
+        d_weights = rand_tensor(m.weight.data)
+        m.weight.data.add_(d_weights)
+        d_bias = rand_tensor(m.weight.data)
+        m.bias.data.add_(d_bias)
+
 netG.apply(weights_init)
 netD.apply(weights_init)
+
+# netD.apply(randomize_weights)
+
 
 optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
@@ -70,6 +95,9 @@ print(netG)
 
 for epoch in range(EPOCHS):
     print('Starting epoch: %d' % (epoch))
+    errD_total = 0
+    errG_total = 0
+    err_count = 0
     for i, real_data in enumerate(data_loader):
         real_data = real_data.to(device)
 
@@ -109,15 +137,25 @@ for epoch in range(EPOCHS):
         D_G_z2 = output.mean().item()
         optimizerG.step()
 
+        err_count += 1
+        errD_total += errD
+        errG_total += errG
+
         print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
               % (epoch, EPOCHS, i, len(data_loader),
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
-        
-        if i % 5 == 0:
-            vutils.save_image(real_data, '%s/real_samples.png' % OUTPUT_PATH, normalize=True)
-            fake = netG(fixed_noise)
-            vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (OUTPUT_PATH, epoch), normalize=True)
+    
+    errD_avg = errD_total.item()/err_count
+    errG_avg = errG_total.item()/err_count
+    print('errD_avg: %.4f errG_avg: %.4f' % (errD_avg, errG_avg))
+    if errD_avg < D_RAND_THRESHOLD and errG_avg > G_RAND_THRESHOLD:
+        print("Randomizing Descriminator")
+        netD.apply(randomize_weights)
 
-        # do checkpointing
+    if epoch % 100 == 0:
+        vutils.save_image(real_data, '%s/real_samples.png' % OUTPUT_PATH, normalize=True)
+        fake = netG(fixed_noise)
+        vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (OUTPUT_PATH, epoch), normalize=True)
+
         torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (OUTPUT_PATH, epoch))
         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (OUTPUT_PATH, epoch))
