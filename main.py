@@ -37,10 +37,9 @@ transforms = torchvision.transforms.Compose([
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
 
+print('Loading dataset...')
 dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
 #dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
-
-print('Loading dataset...')
 data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
 print('Done loading dataset.')
 
