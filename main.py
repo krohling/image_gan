@@ -37,8 +37,8 @@ transforms = torchvision.transforms.Compose([
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
 
-#dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
-dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
+dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
+#dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
 data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
