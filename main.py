@@ -16,7 +16,7 @@ from discriminator import Discriminator
 
 EPOCHS = 10
 LEARNING_RATE = 0.0002
-IMAGE_SIZE = 256
+IMAGE_SIZE = 64
 IMAGE_CHANNELS = 3
 BATCH_SIZE = 1
 Z_SIZE = 100
@@ -37,8 +37,8 @@ transforms = torchvision.transforms.Compose([
         torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ])
 
-dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
-#dataset = dset.LSUN(root='../../lsun', classes=['bedroom_train'], transform=transforms)
+#dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
+dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
 data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -62,7 +62,12 @@ netD.apply(weights_init)
 optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 
+print(device)
+print(netD)
+print(netG)
+
 for epoch in range(EPOCHS):
+    print('Starting epoch: %d' % (epoch))
     for i, real_data in enumerate(data_loader):
         real_data = real_data.to(device)
 
