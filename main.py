@@ -106,6 +106,8 @@ for epoch in range(EPOCHS):
     err_count = 0
     D_val_accuracy_count = 0
     D_val_accuracy = 0.0
+    D_train_accuracy_count = 0
+    D_train_accuracy = 0.0
 
     netD.eval()
     real_dataset.select('validation')
@@ -115,6 +117,14 @@ for epoch in range(EPOCHS):
         D_val_accuracy_count += validate(netD, real_data, REAL_LABEL)
     D_val_accuracy = D_val_accuracy_count / len(real_dataset)
     print('D_val_accuracy: %.4f - [%d/%d]' % (D_val_accuracy, D_val_accuracy_count, len(real_dataset)))
+
+    real_dataset.select('train')
+    for _, real_data in enumerate(real_data_loader):
+        #real_data = real_data[0].to(device)
+        real_data = real_data.to(device)
+        D_train_accuracy_count += validate(netD, real_data, REAL_LABEL)
+    D_train_accuracy = D_train_accuracy_count / len(real_dataset)
+    print('D_train_accuracy: %.4f - [%d/%d]' % (D_train_accuracy, D_train_accuracy_count, len(real_dataset)))
 
     netD.zero_grad()
     netD.train()
@@ -129,10 +139,8 @@ for epoch in range(EPOCHS):
         ###########################
         # train with real
         if D_val_accuracy < D_ACC_TRAIN_THRESHOLD:
-            print("Train netD")
             errD_real = train(netD, real_data, REAL_LABEL)
         else:
-            print("Calc netD loss")
             with torch.set_grad_enabled(False):
                 errD_real, _, _ = calc_loss(netD, real_data, REAL_LABEL)
 
@@ -141,7 +149,7 @@ for epoch in range(EPOCHS):
         fake = netG(noise)
         errD_fake = train(netD, fake.detach(), FAKE_LABEL)
         errD = errD_real + errD_fake
-        print('errD_real: %.4f errD_fake: %.4f errD: %.4f' % (errD_real, errD_fake, errD))
+        #print('errD_real: %.4f errD_fake: %.4f errD: %.4f' % (errD_real, errD_fake, errD))
         optimizerD.step()
 
         ############################
