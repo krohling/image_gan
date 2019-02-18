@@ -76,7 +76,7 @@ def calc_loss(model, inputs, label, rand_rate=None):
     batch_size = inputs.size(0)
     targets = torch.full((batch_size,), label, device=device)
     if rand_rate is not None:
-        count = rand_rate * batch_size
+        count = int(rand_rate * batch_size)
         indices = torch.rand(count) * batch_size
 
         new_label = REAL_LABEL
