@@ -84,7 +84,7 @@ def calc_loss(model, inputs, label, rand_rate=None):
             new_label = FAKE_LABEL
         
         for idx in indices:
-            targets[idx] = new_label
+            targets[int(idx.item())] = new_label
 
     outputs = model(inputs)
     return criterion(outputs, targets), outputs, targets
