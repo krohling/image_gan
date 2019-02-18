@@ -87,7 +87,7 @@ def calc_accuracy(outputs, targets):
 
 def train(model, inputs, label):
     model.train()
-    model.zero_grad()
+    #model.zero_grad()
     with torch.set_grad_enabled(True):
         loss, _, _ = calc_loss(model, inputs, label)
         loss.backward()
@@ -116,6 +116,7 @@ for epoch in range(EPOCHS):
     D_val_accuracy = D_val_accuracy_count / len(real_dataset)
     print('D_val_accuracy: %.4f - [%d/%d]' % (D_val_accuracy, D_val_accuracy_count, len(real_dataset)))
 
+    netD.zero_grad()
     netD.train()
     real_dataset.select('train')
     for i, real_data in enumerate(real_data_loader):
