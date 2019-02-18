@@ -4,7 +4,7 @@ import math
 from print_layer import PrintLayer
 
 NDF = 64
-RAND_SCALE = 0.004
+RAND_SCALE = 0.01
 
 class Discriminator(nn.Module):
     def __init__(self, image_size, image_channels):
