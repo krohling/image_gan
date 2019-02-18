@@ -110,6 +110,8 @@ for epoch in range(EPOCHS):
     netD.eval()
     real_dataset.select('validation')
     for _, real_data in enumerate(real_data_loader):
+        #real_data = real_data[0].to(device)
+        real_data = real_data.to(device)
         D_val_accuracy_count += validate(netD, real_data, REAL_LABEL)
     D_val_accuracy = D_val_accuracy_count / len(real_dataset)
     print('D_val_accuracy: %.4f - [%d/%d]' % (D_val_accuracy, D_val_accuracy_count, len(real_dataset)))
