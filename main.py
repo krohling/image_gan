@@ -15,7 +15,7 @@ from image_dataset import ImageDataset
 from generator import Generator
 from discriminator import Discriminator
 
-EPOCHS = 10000
+EPOCHS = 100000
 LEARNING_RATE = 0.0002
 IMAGE_SIZE = 64
 IMAGE_CHANNELS = 3
@@ -28,8 +28,8 @@ IMAGES_PATH = './images'
 G_RAND_THRESHOLD = 20.0
 D_RAND_THRESHOLD = 0.01
 D_ACC_TRAIN_THRESHOLD = 0.90
-OVERFIT_THRESHOLD = 0.20
-OVERFIT_RAND_RATE = 0.15
+OVERFIT_THRESHOLD = 0.15
+OVERFIT_RAND_RATE = 0.20
 
 REAL_LABEL = 1
 FAKE_LABEL = 0
