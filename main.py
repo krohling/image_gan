@@ -28,6 +28,7 @@ IMAGES_PATH = './images'
 G_RAND_THRESHOLD = 20.0
 D_RAND_THRESHOLD = 0.01
 D_ACC_TRAIN_THRESHOLD = 0.90
+OVERFIT_THRESHOLD = 0.25
 
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -126,7 +127,7 @@ for epoch in range(EPOCHS):
     D_train_accuracy = D_train_accuracy_count / len(real_dataset)
     print('D_train_accuracy: %.4f - [%d/%d]' % (D_train_accuracy, D_train_accuracy_count, len(real_dataset)))
 
-    if D_train_accuracy-D_val_accuracy > 0.50:
+    if D_train_accuracy-D_val_accuracy > OVERFIT_THRESHOLD:
         print("Randomizing Descriminator: Overfitting")
         netD.randomize_weights()
 
