@@ -29,6 +29,7 @@ G_RAND_THRESHOLD = 20.0
 D_RAND_THRESHOLD = 0.01
 D_ACC_TRAIN_THRESHOLD = 0.90
 OVERFIT_THRESHOLD = 0.20
+OVERFIT_RAND_RATE = 0.15
 
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -71,9 +72,20 @@ print(netG)
 
 
 
-def calc_loss(model, inputs, label):
+def calc_loss(model, inputs, label, rand_rate=None):
     batch_size = inputs.size(0)
     targets = torch.full((batch_size,), label, device=device)
+    if rand_rate is not None:
+        count = rand_rate * batch_size
+        indices = torch.rand(count) * batch_size
+
+        new_label = REAL_LABEL
+        if label == REAL_LABEL:
+            new_label = FAKE_LABEL
+        
+        for idx in indices:
+            targets[idx] = new_label
+
     outputs = model(inputs)
     return criterion(outputs, targets), outputs, targets
 
@@ -86,11 +98,11 @@ def calc_accuracy(outputs, targets):
     
     return accuracy_count
 
-def train(model, inputs, label):
+def train(model, inputs, label, rand_rate=None):
     model.train()
     #model.zero_grad()
     with torch.set_grad_enabled(True):
-        loss, _, _ = calc_loss(model, inputs, label)
+        loss, _, _ = calc_loss(model, inputs, label, rand_rate)
         loss.backward()
         return loss
 
@@ -127,9 +139,11 @@ for epoch in range(EPOCHS):
     D_train_accuracy = D_train_accuracy_count / len(real_dataset)
     print('D_train_accuracy: %.4f - [%d/%d]' % (D_train_accuracy, D_train_accuracy_count, len(real_dataset)))
 
+    real_train_rand_rate = None
     if D_train_accuracy-D_val_accuracy > OVERFIT_THRESHOLD:
         print("Randomizing Descriminator: Overfitting")
         netD.randomize_weights()
+        real_train_rand_rate = OVERFIT_RAND_RATE
 
     netD.zero_grad()
     netD.train()
@@ -144,7 +158,7 @@ for epoch in range(EPOCHS):
         ###########################
         # train with real
         if D_val_accuracy < D_ACC_TRAIN_THRESHOLD:
-            errD_real = train(netD, real_data, REAL_LABEL)
+            errD_real = train(netD, real_data, REAL_LABEL, real_train_rand_rate)
         else:
             with torch.set_grad_enabled(False):
                 errD_real, _, _ = calc_loss(netD, real_data, REAL_LABEL)
