@@ -32,7 +32,18 @@ class Generator(nn.Module):
         #layers.append(PrintLayer())
 
         self.network = nn.Sequential(*layers)
-
+    
     def forward(self, input):
         output = self.network(input)
         return output
+    
+    def init_weights(self):
+        self.apply(self.__init_weights)
+    
+    def __init_weights(self, m):
+        classname = m.__class__.__name__
+        if classname.find('Conv') != -1:
+            m.weight.data.normal_(0.0, 0.02)
+        elif classname.find('BatchNorm') != -1:
+            m.weight.data.normal_(1.0, 0.02)
+            m.bias.data.fill_(0)

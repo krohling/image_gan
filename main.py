@@ -9,8 +9,9 @@ import torchvision
 import torchvision.utils as vutils
 import torchvision.datasets as dset
 from torch.utils.data import DataLoader
+from torchnet.dataset import SplitDataset, ShuffleDataset
 
-from dataset import ImageDataset
+from image_dataset import ImageDataset
 from generator import Generator
 from discriminator import Discriminator
 
@@ -24,9 +25,9 @@ BETA1 = 0.5
 OUTPUT_PATH = './output'
 IMAGES_PATH = './images'
 
-RAND_SCALE = 0.001
 G_RAND_THRESHOLD = 20.0
 D_RAND_THRESHOLD = 0.01
+D_ACC_TRAIN_THRESHOLD = 0.90
 
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -35,56 +36,30 @@ if not os.path.exists(OUTPUT_PATH):
     os.makedirs(OUTPUT_PATH)
 
 transforms = torchvision.transforms.Compose([
-        torchvision.transforms.Resize(IMAGE_SIZE),
-        torchvision.transforms.CenterCrop(IMAGE_SIZE),
-        torchvision.transforms.ToTensor(),
-        torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
-    ])
+    torchvision.transforms.Resize(IMAGE_SIZE),
+    torchvision.transforms.CenterCrop(IMAGE_SIZE),
+    torchvision.transforms.ToTensor(),
+    torchvision.transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
+])
 
 print('Loading dataset...')
-dataset = ImageDataset(IMAGES_PATH, transforms, '*.jpg')
-#dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
-data_loader = DataLoader(dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+real_dataset = ImageDataset(IMAGES_PATH, transforms, '*.*')
+#real_dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
+real_dataset = SplitDataset(ShuffleDataset(real_dataset), {'train': 0.8, 'validation': 0.2})
+real_dataset.select('train')
+real_data_loader = DataLoader(real_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+
+# noise_dataset = NoiseDataset(len(real_data_loader), Z_SIZE)
+# noise_data_loader = DataLoader(noise_dataset, batch_size = BATCH_SIZE)
 print('Done loading dataset.')
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 fixed_noise = torch.randn(BATCH_SIZE, Z_SIZE, 1, 1, device=device)
 netG = Generator(IMAGE_SIZE, IMAGE_CHANNELS, Z_SIZE).to(device)
 netD = Discriminator(IMAGE_SIZE, IMAGE_CHANNELS).to(device)
+netG.init_weights()
+netD.init_weights()
 criterion = nn.BCELoss()
-
-# custom weights initialization called on netG and netD
-def weights_init(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        m.weight.data.normal_(0.0, 0.02)
-    elif classname.find('BatchNorm') != -1:
-        m.weight.data.normal_(1.0, 0.02)
-        m.bias.data.fill_(0)
-
-def rand_tensor(t_like):
-    r_tensor = torch.rand_like(t_like)
-    r_tensor.sub_(0.5)
-    r_tensor.mul_(RAND_SCALE)
-    return r_tensor
-
-
-def randomize_weights(m):
-    classname = m.__class__.__name__
-    if classname.find('Conv') != -1:
-        d_weights = rand_tensor(m.weight.data)
-        m.weight.data.add_(d_weights)
-    elif classname.find('BatchNorm') != -1:
-        d_weights = rand_tensor(m.weight.data)
-        m.weight.data.add_(d_weights)
-        d_bias = rand_tensor(m.weight.data)
-        m.bias.data.add_(d_bias)
-
-netG.apply(weights_init)
-netD.apply(weights_init)
-
-# netD.apply(randomize_weights)
-
 
 optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
@@ -93,65 +68,103 @@ print(device)
 print(netD)
 print(netG)
 
+
+
+def calc_loss(model, inputs, label):
+    batch_size = inputs.size(0)
+    targets = torch.full((batch_size,), label, device=device)
+    outputs = model(inputs)
+    return criterion(outputs, targets), outputs, targets
+
+def calc_accuracy(outputs, targets):
+    accuracy_count = 0
+    preds = torch.round(outputs)
+    for i in range(len(preds)):
+        if preds[i] == targets[i]:
+            accuracy_count += 1
+    
+    return accuracy_count
+
+def train(model, inputs, label):
+    model.train()
+    model.zero_grad()
+    with torch.set_grad_enabled(True):
+        loss, _, _ = calc_loss(model, inputs, label)
+        loss.backward()
+        return loss
+
+def validate(model, inputs, label):
+    model.eval()
+    with torch.set_grad_enabled(False):
+        loss, outputs, targets = calc_loss(model, inputs, label)
+        return calc_accuracy(outputs, targets)
+
 for epoch in range(EPOCHS):
     print('Starting epoch: %d' % (epoch))
     errD_total = 0
     errG_total = 0
     err_count = 0
-    for i, real_data in enumerate(data_loader):
+    D_val_accuracy_count = 0
+    D_val_accuracy = 0.0
+
+    netD.eval()
+    real_dataset.select('validation')
+    for _, real_data in enumerate(real_data_loader):
+        D_val_accuracy_count += validate(netD, real_data, REAL_LABEL)
+    D_val_accuracy = D_val_accuracy_count / len(real_dataset)
+    print('D_val_accuracy: %.4f - [%d/%d]' % (D_val_accuracy, D_val_accuracy_count, len(real_dataset)))
+
+    netD.train()
+    real_dataset.select('train')
+    for i, real_data in enumerate(real_data_loader):
         #real_data = real_data[0].to(device)
         real_data = real_data.to(device)
+        netD.zero_grad()
 
         ############################
         # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
         ###########################
         # train with real
-        netD.zero_grad()
-        batch_size = real_data.size(0)
-        label = torch.full((batch_size,), REAL_LABEL, device=device)
-
-        output = netD(real_data)
-
-        errD_real = criterion(output, label)
-        errD_real.backward()
-        D_x = output.mean().item()
+        if D_val_accuracy < D_ACC_TRAIN_THRESHOLD:
+            print("Train netD")
+            errD_real = train(netD, real_data, REAL_LABEL)
+        else:
+            print("Calc netD loss")
+            with torch.set_grad_enabled(False):
+                errD_real, _, _ = calc_loss(netD, real_data, REAL_LABEL)
 
         # train with fake
-        noise = torch.randn(batch_size, Z_SIZE, 1, 1, device=device)
+        noise = torch.randn(len(real_data), Z_SIZE, 1, 1, device=device)
         fake = netG(noise)
-        label.fill_(FAKE_LABEL)
-        output = netD(fake.detach())
-        errD_fake = criterion(output, label)
-        errD_fake.backward()
-        D_G_z1 = output.mean().item()
+        errD_fake = train(netD, fake.detach(), FAKE_LABEL)
         errD = errD_real + errD_fake
+        print('errD_real: %.4f errD_fake: %.4f errD: %.4f' % (errD_real, errD_fake, errD))
         optimizerD.step()
 
         ############################
         # (2) Update G network: maximize log(D(G(z)))
         ###########################
         netG.zero_grad()
-        label.fill_(REAL_LABEL)  # fake labels are real for generator cost
+        label = torch.full((len(real_data),), REAL_LABEL, device=device)
         output = netD(fake)
         errG = criterion(output, label)
         errG.backward()
-        D_G_z2 = output.mean().item()
         optimizerG.step()
 
         err_count += 1
         errD_total += errD
         errG_total += errG
 
-        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f D(x): %.4f D(G(z)): %.4f / %.4f'
-              % (epoch, EPOCHS, i, len(data_loader),
-                 errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+        print('[%d/%d][%d/%d] Loss_D: %.4f Loss_G: %.4f'
+              % (epoch, EPOCHS, i, len(real_data_loader), errD.item(), errG.item()))
     
     errD_avg = errD_total.item()/err_count
     errG_avg = errG_total.item()/err_count
     print('errD_avg: %.4f errG_avg: %.4f' % (errD_avg, errG_avg))
+
     if errD_avg < D_RAND_THRESHOLD and errG_avg > G_RAND_THRESHOLD:
         print("Randomizing Descriminator")
-        netD.apply(randomize_weights)
+        netD.randomize_weights()
 
     if epoch % 100 == 0:
         vutils.save_image(real_data, '%s/real_samples.png' % OUTPUT_PATH, normalize=True)
