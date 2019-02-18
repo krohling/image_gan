@@ -126,6 +126,10 @@ for epoch in range(EPOCHS):
     D_train_accuracy = D_train_accuracy_count / len(real_dataset)
     print('D_train_accuracy: %.4f - [%d/%d]' % (D_train_accuracy, D_train_accuracy_count, len(real_dataset)))
 
+    if D_train_accuracy-D_val_accuracy > 0.50:
+        print("Randomizing Descriminator: Overfitting")
+        netD.randomize_weights()
+
     netD.zero_grad()
     netD.train()
     real_dataset.select('train')
