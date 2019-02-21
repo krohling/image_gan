@@ -57,7 +57,7 @@ optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999
 optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 
 print('Loading dataset...')
-real_dataset = ImageDataset(IMAGES_PATH, transforms, REAL_LABEL, '*.*')
+real_dataset = ImageDataset(IMAGES_PATH, transforms, REAL_LABEL, device, '*.*')
 real_dataset = SplitDataset(real_dataset, {'train': 0.8, 'validation': 0.2})
 real_dataset.select('train')
 real_data_loader = DataLoader(real_dataset, shuffle=True, batch_size=BATCH_SIZE)
