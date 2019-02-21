@@ -163,7 +163,7 @@ for epoch in range(EPOCHS):
         print("Randomizing Descriminator")
         netD.randomize_weights()
 
-    if epoch % 1 == 0:
+    if epoch % 100 == 0:
         fake = netG(fixed_noise)
         vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (OUTPUT_PATH, epoch), normalize=True)
 
