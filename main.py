@@ -160,6 +160,8 @@ for epoch in range(EPOCHS):
         real_dataset.select('train')
         D_train_accuracy = validate(netD, real_data_loader)
 
+        D_fake_accuracy = validate(netD, gen_data_loader)
+
         print('***********************')
-        print('Val Accuracy: %.4f Train Accuracy: %.4f' % (D_val_accuracy, D_train_accuracy))
+        print('Val Accuracy: %.4f Train Accuracy: %.4f Fake Accuracy: %.4f' % (D_val_accuracy, D_train_accuracy, D_fake_accuracy))
         print('***********************')
