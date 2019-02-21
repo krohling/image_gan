@@ -73,6 +73,15 @@ print(device)
 print(netD)
 print(netG)
 
+def train(model, inputs, targets):
+    model.train()
+    with torch.set_grad_enabled(True):
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        loss.backward()
+        return loss
+
+
 def calc_accuracy(outputs, targets):
     accuracy_count = 0
     preds = torch.round(outputs)
@@ -82,53 +91,28 @@ def calc_accuracy(outputs, targets):
     
     return accuracy_count
 
-def train(model, inputs, targets):
-    model.train()
-    with torch.set_grad_enabled(True):
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        return loss
-
-def validate(model, inputs, targets):
+def validate(model, data_loader):
     model.eval()
-    with torch.set_grad_enabled(False):
-        outputs = model(inputs)
-        return calc_accuracy(outputs, targets)
+    input_count = 0
+    accuracy_count = 0
+    
+    for _, (inputs, targets) in enumerate(data_loader):
+        inputs = inputs.to(device)
+        targets = targets.to(device)
+        with torch.set_grad_enabled(False):
+            outputs = model(inputs)
+            accuracy_count += calc_accuracy(outputs, targets)
+            input_count += len(inputs)
+
+    return accuracy_count / input_count
+
+
 
 for epoch in range(EPOCHS):
     print('Starting epoch: %d' % (epoch))
 
     ############################
-    # (1) Calculate Discriminator accuracy on Real Validation dataset
-    ###########################
-    netD.eval()
-    D_val_accuracy_count = 0
-    D_val_accuracy = 0.0
-    real_dataset.select('validation')
-    for _, (inputs, targets) in enumerate(real_data_loader):
-        inputs = inputs.to(device)
-        targets = targets.to(device)
-        D_val_accuracy_count += validate(netD, inputs, targets)
-    D_val_accuracy = D_val_accuracy_count / len(real_dataset)
-    # print('D_val_accuracy: %.4f - [%d/%d]' % (D_val_accuracy, D_val_accuracy_count, len(real_dataset)))
-
-    ############################
-    # (2) Calculate Discriminator accuracy on Real Training dataset
-    ###########################
-    netD.eval()
-    D_train_accuracy_count = 0
-    D_train_accuracy = 0.0
-    real_dataset.select('train')
-    for _, (inputs, targets) in enumerate(real_data_loader):
-        inputs = inputs.to(device)
-        targets = targets.to(device)
-        D_train_accuracy_count += validate(netD, inputs, targets)
-    D_train_accuracy = D_train_accuracy_count / len(real_dataset)
-    # print('D_train_accuracy: %.4f - [%d/%d]' % (D_train_accuracy, D_train_accuracy_count, len(real_dataset)))
-
-    ############################
-    # (3) Train Discriminator
+    # (1) Train Discriminator
     ###########################
     netD.zero_grad()
     netD.train()
@@ -143,7 +127,7 @@ for epoch in range(EPOCHS):
 
 
     ############################
-    # (4) Train Generator
+    # (2) Train Generator
     ###########################
     netG.zero_grad()
     netG.train()
@@ -157,15 +141,25 @@ for epoch in range(EPOCHS):
         optimizerG.step()
         errG_total += errG
 
-    print('[%d/%d] Loss_D: %.4f Loss_G: %.4f Val Accuracy: %.4f Train Accuracy: %.4f' % (epoch, EPOCHS, errD, errG, D_val_accuracy, D_train_accuracy))
 
-    if errD < D_RAND_THRESHOLD and errG > G_RAND_THRESHOLD:
-        print("Randomizing Descriminator")
-        netD.randomize_weights()
+    print('[%d/%d] Loss_D: %.4f Loss_G: %.4f' % (epoch, EPOCHS, errD, errG))
+
+    # if errD < D_RAND_THRESHOLD and errG > G_RAND_THRESHOLD:
+    #     print("Randomizing Descriminator")
+    #     netD.randomize_weights()
 
     if epoch % 100 == 0:
         fake = netG(fixed_noise)
         vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (OUTPUT_PATH, epoch), normalize=True)
-
         torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (OUTPUT_PATH, epoch))
         torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (OUTPUT_PATH, epoch))
+
+        real_dataset.select('validation')
+        D_val_accuracy = validate(netD, real_data_loader)
+
+        real_dataset.select('train')
+        D_train_accuracy = validate(netD, real_data_loader)
+
+        print('***********************')
+        print('Val Accuracy: %.4f Train Accuracy: %.4f' % (D_val_accuracy, D_train_accuracy))
+        print('***********************')
