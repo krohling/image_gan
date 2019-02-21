@@ -9,7 +9,7 @@ import torchvision
 import torchvision.utils as vutils
 import torchvision.datasets as dset
 from torch.utils.data import DataLoader, ConcatDataset
-from torchnet.dataset import SplitDataset, ShuffleDataset
+from torchnet.dataset import SplitDataset
 
 from image_dataset import ImageDataset
 from generator_dataset import GeneratorDataset
@@ -58,14 +58,14 @@ optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999
 
 print('Loading dataset...')
 real_dataset = ImageDataset(IMAGES_PATH, transforms, REAL_LABEL, '*.*')
-real_dataset = SplitDataset(ShuffleDataset(real_dataset), {'train': 0.8, 'validation': 0.2})
+real_dataset = SplitDataset(real_dataset, {'train': 0.8, 'validation': 0.2})
 real_dataset.select('train')
-real_data_loader = DataLoader(real_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+real_data_loader = DataLoader(real_dataset, shuffle=True, batch_size=BATCH_SIZE)
 generator_dataset = GeneratorDataset(netG, len(real_dataset), Z_SIZE, FAKE_LABEL, device)
 generator_dataset.generate()
-gen_data_loader = DataLoader(generator_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+gen_data_loader = DataLoader(generator_dataset, shuffle=True, batch_size=BATCH_SIZE)
 concat_dataset = ConcatDataset([real_dataset, generator_dataset])
-concat_data_loader = DataLoader(concat_dataset, shuffle=True, batch_size=BATCH_SIZE, num_workers=2)
+concat_data_loader = DataLoader(concat_dataset, shuffle=True, batch_size=BATCH_SIZE)
 #real_dataset = dset.LSUN(root='../lsun', classes=['bedroom_train'], transform=transforms)
 print('Done loading dataset.')
 
