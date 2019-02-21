@@ -20,7 +20,7 @@ class ImageDataset(Dataset):
     def __getitem__(self, idx):
         file_path = self.files[idx]
         image = Image.open(file_path)
-        input = self.transform(image).to(device)
-        target = torch.FloatTensor([self.label]).to(device)
+        input = self.transform(image).to(self.device)
+        target = torch.FloatTensor([self.label]).to(self.device)
 
         return input, target
