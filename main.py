@@ -144,9 +144,9 @@ for epoch in range(EPOCHS):
 
     print('[%d/%d] Loss_D: %.4f Loss_G: %.4f' % (epoch, EPOCHS, errD, errG))
 
-    # if errD < D_RAND_THRESHOLD and errG > G_RAND_THRESHOLD:
-    #     print("Randomizing Descriminator")
-    #     netD.randomize_weights()
+    if errD < D_RAND_THRESHOLD and errG > G_RAND_THRESHOLD:
+        print("Randomizing Descriminator")
+        netD.randomize_weights()
 
     if epoch % 100 == 0:
         fake = netG(fixed_noise)
