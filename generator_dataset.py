@@ -21,6 +21,6 @@ class GeneratorDataset(Dataset):
 
     def __getitem__(self, idx):
         input = self.items[idx]
-        target = torch.FloatTensor([self.label])
+        target = torch.FloatTensor([self.label]).to(self.device)
 
         return input, target
