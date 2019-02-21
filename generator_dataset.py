@@ -13,7 +13,7 @@ class GeneratorDataset(Dataset):
 
     def generate(self):
         noise = torch.randn(self.length, self.z_size, 1, 1, device=self.device)
-        self.items = self.generator(noise).detach()
+        self.items = self.generator(noise).detach().to(self.device)
         
 
     def __len__(self):
