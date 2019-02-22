@@ -16,7 +16,7 @@ from generator_dataset import GeneratorDataset
 from generator import Generator
 from discriminator import Discriminator
 
-EPOCHS = 100000
+EPOCHS = 100
 LEARNING_RATE = 0.0002
 IMAGE_SIZE = 64
 IMAGE_CHANNELS = 3
@@ -26,11 +26,12 @@ BETA1 = 0.5
 OUTPUT_PATH = './output'
 IMAGES_PATH = './images'
 
-G_RAND_THRESHOLD = 20.0
+G_RAND_THRESHOLD = 5.0
 D_RAND_THRESHOLD = 0.01
 D_ACC_TRAIN_THRESHOLD = 0.90
 OVERFIT_THRESHOLD = 0.15
 OVERFIT_RAND_RATE = 0.20
+RANDOMIZATION_RATE = 0.3
 
 REAL_LABEL = 1
 FAKE_LABEL = 0
@@ -57,8 +58,8 @@ optimizerD = optim.Adam(netD.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999
 optimizerG = optim.Adam(netG.parameters(), lr=LEARNING_RATE, betas=(BETA1, 0.999))
 
 print('Loading dataset...')
-real_dataset = ImageDataset(IMAGES_PATH, transforms, REAL_LABEL, device, '*.*')
-real_dataset = SplitDataset(real_dataset, {'train': 0.8, 'validation': 0.2})
+images_dataset = ImageDataset(IMAGES_PATH, transforms, REAL_LABEL, device, '*.*')
+real_dataset = SplitDataset(images_dataset, {'train': 0.8, 'validation': 0.2})
 real_dataset.select('train')
 real_data_loader = DataLoader(real_dataset, shuffle=True, batch_size=BATCH_SIZE)
 generator_dataset = GeneratorDataset(netG, len(real_dataset), Z_SIZE, FAKE_LABEL, device)
@@ -119,12 +120,14 @@ for epoch in range(EPOCHS):
     real_dataset.select('train')
     generator_dataset.generate()
     errD = 0
+    rand_rate = RANDOMIZATION_RATE * (epoch/EPOCHS)
+    images_dataset.set_randomize_rate(rand_rate)
     for _, (inputs, targets) in enumerate(concat_data_loader):
         inputs = inputs.to(device)
         targets = torch.squeeze(targets).to(device)
         errD += train(netD, inputs, targets)
         optimizerD.step()
-
+    images_dataset.set_randomize_rate(0.0)
 
     ############################
     # (2) Train Generator
@@ -142,13 +145,13 @@ for epoch in range(EPOCHS):
         errG_total += errG
 
 
-    print('[%d/%d] Loss_D: %.4f Loss_G: %.4f' % (epoch, EPOCHS, errD, errG))
+    print('[%d/%d] Loss_D: %.4f Loss_G: %.4f' % (epoch, EPOCHS, errD, errG_total))
 
-    if errD < D_RAND_THRESHOLD and errG > G_RAND_THRESHOLD:
-        print("Randomizing Descriminator")
-        netD.randomize_weights()
+    # if errD < D_RAND_THRESHOLD and errG_total > G_RAND_THRESHOLD:
+    #     print("Randomizing Descriminator")
+    #     netD.randomize_weights()
 
-    if epoch % 100 == 0:
+    if epoch % 5 == 0:
         fake = netG(fixed_noise)
         vutils.save_image(fake.detach(), '%s/fake_samples_epoch_%03d.png' % (OUTPUT_PATH, epoch), normalize=True)
         torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (OUTPUT_PATH, epoch))
